@@ -1,0 +1,20 @@
+{application, 'utg',
+ [{description, "URL Title Grabber"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib,
+    inets,
+    crypto,
+    asn1,
+    public_key,
+    ssl
+   ]},
+  {env,[]},
+  {modules, []},
+
+  {contributors, []},
+  {licenses, []},
+  {links, []}
+ ]}.
