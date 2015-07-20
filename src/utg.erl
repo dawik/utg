@@ -398,15 +398,15 @@ receive_stream(RequestTime, URL, ReqId, Default) ->
     after 5000 -> Default
     end.
 
-read_chunk(Data, InitialRequestTime, Default) when is_binary(Data) ->
-    read_chunk(binary_to_list(Data), InitialRequestTime, Default);
+read_chunk(Data, RequestTime, Default) when is_binary(Data) ->
+    read_chunk(binary_to_list(Data), RequestTime, Default);
 
-read_chunk(Data, InitialRequestTime, Default) ->
+read_chunk(Data, _RequestTime, Default) ->
     case find_title(Data, Default) of
         Default ->
             Default;
         Title ->
-            Title ++ " " ++ diff_secs(InitialRequestTime, now()) ++ "s"
+            Title 
     end.
 
 read_header(_Info, []) ->
