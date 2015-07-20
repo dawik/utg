@@ -1,7 +1,7 @@
 URL Title Grabber
 =====
 
-A simple module that extracts the title of a given URL.
+A little library that attempts to retreive the title of a given website.
 
 ### Features
 
@@ -11,14 +11,19 @@ A simple module that extracts the title of a given URL.
 Build
 -----
 
-    $ rebar3 compile
+    % rebar3 compile
+
+Tests
+-----
+
+    % rebar3 eunit --verbose
 
 API
 -----
 
-### get_title(URL, Default) -> string()
+### grab(URL) -> string()
+### grab(URL, Default) -> string()
     URL = string() | binary()
     Default = term()
 
-    Attempts to get the title of URL. 
-    Returns Default if the title could not be found or throw an exception if a connection error has occured.
+    Attempts to get the title of URL, returns Default if the title could not be found otherwise throws an exception if an error has occured.
