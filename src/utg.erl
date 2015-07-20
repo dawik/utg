@@ -436,11 +436,11 @@ eunit_test_() ->
                  {"news.ycombinator.com", ?_assertMatch("Hacker News" ++ _, grab("https://news.ycombinator.com")) },
                  {"github.com", ?_assertMatch("GitHub" ++ _, grab("https://www.github.com")) } ],
 
-    Entity = [ {"test 1", ?_assertMatch("hey €", convert_entities("hey &euro;")) },
-              {"test 2", ?_assertMatch("hey €", convert_entities("hey &#8364;")) },
-              {"test 3", ?_assertMatch("hey €", convert_entities("hey &x20AC;")) }],
+    Entity = [ {"euro", ?_assertMatch("€€€", convert_entities("&euro;&#8364;&x20AC;")) },
+              {"snowmen", ?_assertMatch("☃⛄⛇", convert_entities("&x2603;&#9924;&#9927;")) }],
 
-    [{"Local functions", {foreach, fun () -> ok end, [[Match | Replace] | Extract]}}, 
-     {"HTML Entity conversion", {foreach, fun () -> ok end, Entity}},
-     {"Grabbing", {foreach, fun () -> application:start(?MODULE) end, Grab}}].
+    [{"Utility tests", {foreach, fun () -> ok end, [[Match | Replace] | Extract]}}, 
+     {"HTML Entity conversion tests", {foreach, fun () -> ok end, Entity}},
+     {"Grabbing websites", {foreach, fun () -> application:start(?MODULE) end, Grab}}].
+
 
