@@ -363,25 +363,8 @@ convert_entities(String)->
             end
     end.
 
-epower(FloatString) when hd(FloatString) == $e ->
-    erlang:list_to_integer(tl(FloatString));
-
-epower(FloatString) ->
-    epower(tl(FloatString)).
-
-decimals(FloatString) ->
-    case epower(FloatString) of
-        N when N < 0 ->
-            lists:sublist("0." ++ lists:flatten([ "0" || _ <- lists:seq(2, abs(N))] ++ [ X || X <- FloatString, X /= $.]),abs(N) + 3);
-        0 ->
-            lists:sublist(FloatString,4);
-        N -> 
-            lists:sublist([ X || X <- FloatString, X /= $.], N+1)
-    end.
-
-
 diff_secs({_MYears1, Secs1, Usecs1}, {_MYears2, Secs2, Usecs2}) ->
-    decimals(erlang:float_to_list(abs(Secs1 - Secs2) + (abs(Usecs1 - Usecs2) * math:pow(10,-6)))).
+    float_to_list(abs(Secs1 - Secs2) + (abs(Usecs1 - Usecs2) * math:pow(10,-6)), [{decimals,3}]).
 
 find_title(Markup, Default) ->
     Tokens = string:tokens(Markup, ">"),
