@@ -265,29 +265,42 @@ is_match(_, []) ->
 is_match(_, _) ->
         false.
 
-match(Subject, Match, Pos, first) when hd(Subject) == hd(Match) ->
+match_first([], _Match, _Pos)-> nomatch;
+
+match_first(Subject, Match, Pos) when hd(Subject) == hd(Match) ->
     case is_match(Subject, Match) of
         true -> {match, Pos};
-        false -> match(tl(Subject), Match, Pos + 1, first)
+        false -> match_first(tl(Subject), Match, Pos + 1)
     end;
 
-match(Subject, Match, Pos, Acc) when hd(Subject) == hd(Match) ->
+match_first(_Subject, _Match, _Pos) ->
+        match_first(tl(_Subject), _Match, _Pos + 1).
+
+match_first(Subject, Match) ->
+    match_first(Subject, Match, 0).
+
+match_all([], _, _, []) ->
+    nomatch;
+
+match_all([], _, _, Acc) ->
+    lists:reverse(Acc);
+
+match_all(Subject, Match, Pos, Acc) when hd(Subject) == hd(Match) ->
     case is_match(Subject, Match) of
-        true -> match(Subject, Match, Pos + 1, [Pos|Acc]);
-        false -> match(tl(Subject), Match, Pos + 1, Acc)
+        true -> match_all(tl(Subject), Match, Pos + 1, [Pos|Acc]);
+        false -> match_all(tl(Subject), Match, Pos + 1, Acc)
     end;
 
-match([], _, _, first) ->
-    nomatch;
+match_all(Subject, Match, Pos, Acc) ->
+        match_all(tl(Subject), Match, Pos + 1, Acc).
 
-match([], _, [], []) ->
-    nomatch;
 
-match(Subject, Match, Pos, Mode) ->
-    match(tl(Subject), Match, Pos + 1, Mode).
+match_all(Subject, Match) ->
+    match_all(Subject, Match, 0, []).
 
 match(Subject, Match) ->
-    match(Subject, Match, 0, first). 
+    match_first(Subject, Match). 
+
 
 replace(Subject, Match, Replacement) ->
     case match(Subject, Match) of
@@ -367,21 +380,19 @@ diff_secs({_MYears1, Secs1, Usecs1}, {_MYears2, Secs2, Usecs2}) ->
     decimals(erlang:float_to_list(abs(Secs1 - Secs2) + (abs(Usecs1 - Usecs2) * math:pow(10,-6)))).
 
 find_title(Markup, Default) ->
-    find_title("", string:tokens(Markup, ">"), Default).
+    Tokens = string:tokens(Markup, ">"),
+    find_title(hd(Tokens), tl(Tokens), Default).
 
 find_title(_, [], Default) ->
     Default;
 
-find_title(Head, Tail, Default) when length(Head) > 5 ->
-    case match(Head, "<title") of
+find_title(Tag, Tail, Default) ->
+    case match(string:to_lower(Tag), "<title") of
         {match, _ } ->
             convert_entities(trim(hd(Tail)));
         _ ->
             find_title(hd(Tail), tl(Tail), Default)
-    end;
-
-find_title(_, Tail, Default) ->
-    find_title(hd(Tail), tl(Tail), Default).
+    end.
 
 receive_stream(RequestTime, URL, ReqId, Default) ->
     receive 
@@ -393,7 +404,7 @@ receive_stream(RequestTime, URL, ReqId, Default) ->
         {http, {ReqId, stream, Body}} -> 
             case read_chunk(Body, RequestTime, Default) of
                 Default -> receive_stream(RequestTime, URL, ReqId, Default);	
-                Title -> spawn(fun() -> receive_stream(RequestTime, URL, ReqId, Default) end), Title ++ " " ++ diff_secs(RequestTime, now()) ++ "s"
+                Title -> spawn(fun() -> receive_stream(RequestTime, URL, ReqId, Default) end), {Title, diff_secs(RequestTime, now())}
             end;
         {http, {ReqId, stream_end, _}} -> Default
     after 5000 -> Default
