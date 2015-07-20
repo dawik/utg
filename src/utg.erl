@@ -2,7 +2,7 @@
 
 -module(utg).
 
--export([get_title/2]).
+-export([grab/1, grab/2]).
 
 -author("dave@douchedata.com").
 
@@ -259,13 +259,20 @@
 get_title(URL, Default) when is_binary(URL) -> 
     get_title(binary_to_list(URL), Default);
 
-get_title(URL, Default) -> 
+grab(URL, Default) -> 
     case httpc:request(get, {URL, []}, [{ssl,[{verify,verify_none}, {depth, 5}]}], [{body_format, binary}, {stream, self}, {sync,false}]) of
         {ok, ReqId} -> receive_stream(now(), URL, ReqId, Default);
         {error, _ } -> Default
     end.
 
-cleanup_title(Title) ->
+grab(URL) ->
+    case grab(URL, grabfail) of
+        grabfail ->
+            throw(grabfail);
+        Title ->
+            Title
+    end.
+
     lists:reverse(lists:nthtail(7, lists:reverse(string:strip(string:strip(Title, both, $\n), both, $ )))).
 
 convert_entities(Title)->
