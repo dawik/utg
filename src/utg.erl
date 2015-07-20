@@ -418,21 +418,25 @@ read_header(Info, [{_, _}|T]) ->
     read_header(Info, T).
 
 eunit_test_() ->
-    Match = [ {"match test 1", ?_assertMatch({match, 0}, match("heyhey", "he"))},
-                  {"match test 2", ?_assertMatch({match, 2}, match("heyhey", "yh"))},
-                  {"match test 3", ?_assertMatch(nomatch, match("heyhey", "xoxo"))}],
+    Match = [ {"match_first test 1", ?_assertMatch({match, 0}, match("heyhey", "he"))},
+             {"match_first test 2", ?_assertMatch({match, 2}, match("heyhey", "yh"))},
+             {"match_first test 3", ?_assertMatch(nomatch, match("heyhey", "xoxo"))},
+             {"match_all test 1", ?_assertMatch([0, 2, 4],  match_all("ohohoh", "o"))},
+             {"match_all test 2", ?_assertMatch(nomatch,  match_all("ohohoh", "x"))}
+            ],
 
     Replace = [ {"replace test 1", ?_assertMatch("hoho", replace("heyhey", "ey", "o"))},
-                    {"replace test 2", ?_assertMatch("hey", replace("heyhey", "yhe", ""))},
-                    {"replace test 3", ?_assertMatch("heyhey", replace("heyhey", "xoxo", "no"))}],
+               {"replace test 2", ?_assertMatch("hey", replace("heyhey", "yhe", ""))},
+               {"replace test 3", ?_assertMatch("heyhey", replace("heyhey", "xoxo", "no"))}],
 
     Extract = [ {"extract test 1", ?_assertMatch("yzqw", extract("xyzqwe", "y", "w"))},
-                    {"extract test 2", ?_assertMatch("zq", extract("xyzqwe", "zq", "q"))},
-                    {"extract test 3", ?_assertMatch(nomatch, extract("xyzqwe", "qwe", "xyz"))}],
+               {"extract test 2", ?_assertMatch("zq", extract("xyzqwe", "zq", "q"))},
+               {"extract test 3", ?_assertMatch(nomatch, extract("xyzqwe", "qwe", "xyz"))}],
 
-    Grab = [ {"erlang.org", ?_assertMatch("Erlang Programming Language" ++ _, grab("http://www.erlang.org")) },
-                 {"news.ycombinator.com", ?_assertMatch("Hacker News" ++ _, grab("https://news.ycombinator.com")) },
-                 {"github.com", ?_assertMatch("GitHub" ++ _, grab("https://www.github.com")) } ],
+    Grab = [ {"erlang", ?_assertMatch({"Erlang Programming Language", _RTT}, grab("http://www.erlang.org")) },
+            {"ycombinator", ?_assertMatch({"Hacker News", _RTT}, grab("https://news.ycombinator.com")) },
+            {"google", ?_assertMatch({"Google", _RTT}, grab("https://www.google.com")) },
+            {"github", ?_assertMatch({"GitHub" ++ _RTT, _}, grab("https://www.github.com")) } ],
 
     Entity = [ {"euro", ?_assertMatch("€€€", convert_entities("&euro;&#8364;&x20AC;")) },
               {"snowmen", ?_assertMatch("☃⛄⛇", convert_entities("&x2603;&#9924;&#9927;")) },
@@ -441,5 +445,4 @@ eunit_test_() ->
     [{"Utility tests", {foreach, fun () -> ok end, [[Match | Replace] | Extract]}}, 
      {"HTML Entity conversion tests", {foreach, fun () -> ok end, Entity}},
      {"Grabbing websites", {foreach, fun () -> application:start(?MODULE) end, Grab}}].
-
 
