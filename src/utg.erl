@@ -1,5 +1,7 @@
 %% Module used for grabbing the title from websites
 
+-include_lib("eunit/include/eunit.hrl").
+
 -module(utg).
 
 -export([grab/1, grab/2]).
@@ -287,7 +289,6 @@ match(Subject, Match, Pos, Mode) ->
 match(Subject, Match) ->
     match(Subject, Match, 0, first). 
 
-
 replace(Subject, Match, Replacement) ->
     case match(Subject, Match) of
         {match, Pos} when is_list(Replacement) ->
@@ -417,3 +418,29 @@ read_header(Info, [{Info, Value}|_]) ->
 
 read_header(Info, [{_, _}|T]) ->
     read_header(Info, T).
+
+eunit_test_() ->
+    Match = [ {"match test 1", ?_assertMatch({match, 0}, match("heyhey", "he"))},
+                  {"match test 2", ?_assertMatch({match, 2}, match("heyhey", "yh"))},
+                  {"match test 3", ?_assertMatch(nomatch, match("heyhey", "xoxo"))}],
+
+    Replace = [ {"replace test 1", ?_assertMatch("hoho", replace("heyhey", "ey", "o"))},
+                    {"replace test 2", ?_assertMatch("hey", replace("heyhey", "yhe", ""))},
+                    {"replace test 3", ?_assertMatch("heyhey", replace("heyhey", "xoxo", "no"))}],
+
+    Extract = [ {"extract test 1", ?_assertMatch("yzqw", extract("xyzqwe", "y", "w"))},
+                    {"extract test 2", ?_assertMatch("zq", extract("xyzqwe", "zq", "q"))},
+                    {"extract test 3", ?_assertMatch(nomatch, extract("xyzqwe", "qwe", "xyz"))}],
+
+    Grab = [ {"erlang.org", ?_assertMatch("Erlang Programming Language" ++ _, grab("http://www.erlang.org")) },
+                 {"news.ycombinator.com", ?_assertMatch("Hacker News" ++ _, grab("https://news.ycombinator.com")) },
+                 {"github.com", ?_assertMatch("GitHub" ++ _, grab("https://www.github.com")) } ],
+
+    Entity = [ {"test 1", ?_assertMatch("hey €", convert_entities("hey &euro;")) },
+              {"test 2", ?_assertMatch("hey €", convert_entities("hey &#8364;")) },
+              {"test 3", ?_assertMatch("hey €", convert_entities("hey &x20AC;")) }],
+
+    [{"Local functions", {foreach, fun () -> ok end, [[Match | Replace] | Extract]}}, 
+     {"HTML Entity conversion", {foreach, fun () -> ok end, Entity}},
+     {"Grabbing", {foreach, fun () -> application:start(?MODULE) end, Grab}}].
+
