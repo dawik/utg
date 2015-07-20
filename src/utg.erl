@@ -324,6 +324,7 @@ grab(URL) ->
             Title
     end.
 
+trim(Title) ->
     lists:reverse(lists:nthtail(7, lists:reverse(string:strip(string:strip(Title, both, $\n), both, $ )))).
 
 convert_entities(Title)->
