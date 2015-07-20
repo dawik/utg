@@ -341,22 +341,26 @@ grab(URL) ->
 trim(Title) ->
     lists:reverse(lists:nthtail(7, lists:reverse(string:strip(string:strip(Title, both, $\n), both, $ )))).
 
-convert_entities(Title)->
-    case extract(Title, "&", "\;") of
+convert_entities(String)->
+    case extract(String, "&", "\;") of
         nomatch ->
-            Title;
-        HTML_Entity ->
-            "&" ++ Code = lists:reverse(tl(lists:reverse(HTML_Entity))),
-            Character = case hd(Code) of
-                $x -> binary_to_list(unicode:characters_to_binary([list_to_integer(tl(Code), 16)]));
-                _ when hd(tl(Code)) >= $0 andalso hd(tl(Code)) =< $9 -> binary_to_list(unicode:characters_to_binary([list_to_integer(tl(Code))]));
-                _ -> case lists:keyfind(Code, 1, ?HTML_ENTITIES) of
-                        {Code, Char} when is_list(Char) -> Char;
-                        {Code, Char} -> Char;
-                        false -> HTML_Entity
-                    end
-            end,
-            convert_entities(replace(Title, HTML_Entity, Character))
+            String;
+        HTMLCharacterEntity ->
+            try 
+                "&" ++ Code = lists:reverse(tl(lists:reverse(HTMLCharacterEntity))),
+                Character = case hd(Code) of
+                    $x -> binary_to_list(unicode:characters_to_binary([list_to_integer(tl(Code), 16)]));
+                    $# -> binary_to_list(unicode:characters_to_binary([list_to_integer(tl(Code))]));
+                    _ -> case lists:keyfind(Code, 1, ?HTML_ENTITIES) of
+                            {Code, Char} -> Char;
+                            false -> throw(badentity)
+                        end
+                end,
+                convert_entities(replace(String, HTMLCharacterEntity, Character))
+            catch
+                _Exception:_Details ->
+                    String
+            end
     end.
 
 epower(FloatString) when hd(FloatString) == $e ->
@@ -448,7 +452,8 @@ eunit_test_() ->
                  {"github.com", ?_assertMatch("GitHub" ++ _, grab("https://www.github.com")) } ],
 
     Entity = [ {"euro", ?_assertMatch("€€€", convert_entities("&euro;&#8364;&x20AC;")) },
-              {"snowmen", ?_assertMatch("☃⛄⛇", convert_entities("&x2603;&#9924;&#9927;")) }],
+              {"snowmen", ?_assertMatch("☃⛄⛇", convert_entities("&x2603;&#9924;&#9927;")) },
+              {"bad entities", ?_assertMatch("&x156h;&#22222222;&241516;&yes;", convert_entities("&x156h;&#22222222;&241516;&yes;"))}],
 
     [{"Utility tests", {foreach, fun () -> ok end, [[Match | Replace] | Extract]}}, 
      {"HTML Entity conversion tests", {foreach, fun () -> ok end, Entity}},
