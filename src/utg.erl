@@ -256,8 +256,59 @@
         {"rsaquo", "›"},
         {"euro", "€"}]).
 
-get_title(URL, Default) when is_binary(URL) -> 
-    get_title(binary_to_list(URL), Default);
+is_match(Subject, Match) when hd(Subject) == hd(Match) ->
+        is_match(tl(Subject), tl(Match));
+is_match(_, []) ->
+        true;
+is_match(_, _) ->
+        false.
+
+match(Subject, Match, Pos, first) when hd(Subject) == hd(Match) ->
+    case is_match(Subject, Match) of
+        true -> {match, Pos};
+        false -> match(tl(Subject), Match, Pos + 1, first)
+    end;
+
+match(Subject, Match, Pos, Acc) when hd(Subject) == hd(Match) ->
+    case is_match(Subject, Match) of
+        true -> match(Subject, Match, Pos + 1, [Pos|Acc]);
+        false -> match(tl(Subject), Match, Pos + 1, Acc)
+    end;
+
+match([], _, _, first) ->
+    nomatch;
+
+match([], _, [], []) ->
+    nomatch;
+
+match(Subject, Match, Pos, Mode) ->
+    match(tl(Subject), Match, Pos + 1, Mode).
+
+match(Subject, Match) ->
+    match(Subject, Match, 0, first). 
+
+
+replace(Subject, Match, Replacement) ->
+    case match(Subject, Match) of
+        {match, Pos} when is_list(Replacement) ->
+            replace(lists:sublist(Subject, Pos) ++ Replacement ++ lists:nthtail(Pos + length(Match), Subject), Match, Replacement);
+        {match, Pos} when is_integer(Replacement) ->
+            replace(lists:append([lists:sublist(Subject, Pos), [Replacement], lists:nthtail(Pos + length(Match), Subject)]), Match, Replacement);
+        nomatch ->
+            Subject
+    end.
+
+extract(String, From, Through) ->
+    case match(String, From) of
+        {match, _From} ->  
+            _Tail = lists:nthtail(_From, String), 
+            case match(_Tail, Through) of
+                {match, _Through} -> lists:sublist(_Tail, _Through + length(Through));
+                _ -> nomatch
+            end;
+        _ -> nomatch
+    end.
+
 
 grab(URL, Default) -> 
     case httpc:request(get, {URL, []}, [{ssl,[{verify,verify_none}, {depth, 5}]}], [{body_format, binary}, {stream, self}, {sync,false}]) of
@@ -276,21 +327,21 @@ grab(URL) ->
     lists:reverse(lists:nthtail(7, lists:reverse(string:strip(string:strip(Title, both, $\n), both, $ )))).
 
 convert_entities(Title)->
-    case misc:string_extract(Title, "&", "\;") of
+    case extract(Title, "&", "\;") of
         nomatch ->
             Title;
         HTML_Entity ->
             "&" ++ Code = lists:reverse(tl(lists:reverse(HTML_Entity))),
             Character = case hd(Code) of
-                $# when hd(hd(Code)) == $x -> list_to_integer(tl(tl(Code)), 16);
-                $# -> list_to_integer(tl(Code));
+                $x -> binary_to_list(unicode:characters_to_binary([list_to_integer(tl(Code), 16)]));
+                _ when hd(tl(Code)) >= $0 andalso hd(tl(Code)) =< $9 -> binary_to_list(unicode:characters_to_binary([list_to_integer(tl(Code))]));
                 _ -> case lists:keyfind(Code, 1, ?HTML_ENTITIES) of
                         {Code, Char} when is_list(Char) -> Char;
                         {Code, Char} -> Char;
-                        false -> ""
+                        false -> HTML_Entity
                     end
             end,
-            convert_entities(misc:string_replace(Title, HTML_Entity, Character))
+            convert_entities(replace(Title, HTML_Entity, Character))
     end.
 
 epower(FloatString) when hd(FloatString) == $e ->
@@ -319,10 +370,10 @@ find_title(Markup, Default) ->
 find_title(_, [], Default) ->
     Default;
 
-find_title(Head, Tail, Default) when length(Head) > 5 andalso length(Tail) > 0 ->
-    case misc:string_match(Head, "<title") of
+find_title(Head, Tail, Default) when length(Head) > 5 ->
+    case match(Head, "<title") of
         {match, _ } ->
-            convert_entities(cleanup_title(hd(Tail)));
+            convert_entities(trim(hd(Tail)));
         _ ->
             find_title(hd(Tail), tl(Tail), Default)
     end;
@@ -330,17 +381,17 @@ find_title(Head, Tail, Default) when length(Head) > 5 andalso length(Tail) > 0 -
 find_title(_, Tail, Default) ->
     find_title(hd(Tail), tl(Tail), Default).
 
-receive_stream(InitialRequestTime, URL, ReqId, Default) ->
+receive_stream(RequestTime, URL, ReqId, Default) ->
     receive 
         {http, {ReqId, stream_start, Headers}} -> 
-            case misc:string_match(read_header("content-type", Headers), "text/html") of
-                {match, _} -> receive_stream(InitialRequestTime, URL, ReqId, Default);
+            case match(read_header("content-type", Headers), "text/html") of
+                {match, _} -> receive_stream(RequestTime, URL, ReqId, Default);
                 _ -> Default
             end;
         {http, {ReqId, stream, Body}} -> 
-            case read_chunk(Body, InitialRequestTime, Default) of
-                Default -> receive_stream(InitialRequestTime, URL, ReqId, Default);	
-                Title -> spawn(fun() -> receive_stream(InitialRequestTime, URL, ReqId, Default) end), Title
+            case read_chunk(Body, RequestTime, Default) of
+                Default -> receive_stream(RequestTime, URL, ReqId, Default);	
+                Title -> spawn(fun() -> receive_stream(RequestTime, URL, ReqId, Default) end), Title ++ " " ++ diff_secs(RequestTime, now()) ++ "s"
             end;
         {http, {ReqId, stream_end, _}} -> Default
     after 5000 -> Default
