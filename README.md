@@ -1,7 +1,7 @@
 URL Title Grabber
 =====
 
-A little library that attempts to retreive the title of a given website.
+A little library that retreives the title of a given website.
 
 ### Features
 
